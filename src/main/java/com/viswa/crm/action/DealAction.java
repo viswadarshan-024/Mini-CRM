@@ -48,9 +48,6 @@ public class DealAction extends BaseAction {
     @Autowired
     private AuthService authService;
 
-    // --------------------
-    // Form fields
-    // --------------------
     private Long id;
     private String title;
     private BigDecimal amount;
@@ -61,9 +58,6 @@ public class DealAction extends BaseAction {
 
     private String keyword;
 
-    // --------------------
-    // View data
-    // --------------------
     private List<DealResponse> deals;
     private List<UserResponse> users;
     private List<CompanyResponse> companies;
@@ -163,9 +157,6 @@ public class DealAction extends BaseAction {
         }
     }
 
-    // --------------------
-    // DELETE
-    // --------------------
     public String delete() {
 
         if (!isAuthenticated()) return LOGIN;
@@ -175,9 +166,6 @@ public class DealAction extends BaseAction {
         return SUCCESS;
     }
 
-    // --------------------
-    // CHANGE STATUS
-    // --------------------
     public String changeStatus() {
 
         if (!isAuthenticated()) return LOGIN;
@@ -189,9 +177,6 @@ public class DealAction extends BaseAction {
         return SUCCESS;
     }
 
-    // --------------------
-    // HELPERS
-    // --------------------
     private void loadDropdowns() {
         companies = companyService.getAllCompanies();
         users = authService.getAllUsers();
