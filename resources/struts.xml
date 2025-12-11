@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE struts PUBLIC
+        "-//Apache Software Foundation//DTD Struts Configuration 2.5//EN"
+        "http://struts.apache.org/dtds/struts-2.5.dtd">
+
+<struts>
+
+    <!-- ========================= -->
+    <!-- Framework configuration -->
+    <!-- ========================= -->
+
+    <constant name="struts.devMode" value="true"/>
+
+    <constant name="struts.objectFactory" value="spring"/>
+
+    <constant name="struts.convention.package.locators" value="action"/>
+
+    <constant name="struts.convention.result.path" value="/WEB-INF/jsp"/>
+
+    <constant name="struts.enable.DynamicMethodInvocation" value="true"/>
+
+    <!-- ========================= -->
+    <!-- Default package -->
+    <!-- ========================= -->
+
+    <package name="default"
+             namespace="/"
+             extends="struts-default">
+
+        <!-- Default action if nothing matches -->
+        <default-action-ref name="login"/>
+
+        <!-- ========================= -->
+        <!-- Global results -->
+        <!-- ========================= -->
+        <global-results>
+            <result name="login" type="redirect">login.action</result>
+            <result name="403">errors/403.jsp</result>
+            <result name="error">errors/error.jsp</result>
+        </global-results>
+
+        <!-- ========================= -->
+        <!-- Global exception handling -->
+        <!-- ========================= -->
+        <global-exception-mappings>
+
+            <exception-mapping
+                    exception="com.viswa.crm.exception.AuthenticationException"
+                    result="login"/>
+
+            <exception-mapping
+                    exception="com.viswa.crm.exception.AuthorizationException"
+                    result="403"/>
+
+            <exception-mapping
+                    exception="com.viswa.crm.exception.BusinessException"
+                    result="error"/>
+
+            <!-- Safety net -->
+            <exception-mapping
+                    exception="java.lang.Exception"
+                    result="error"/>
+
+        </global-exception-mappings>
+
+    </package>
+
+</struts>
