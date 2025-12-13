@@ -1,7 +1,10 @@
 package com.viswa.crm.dto.common;
 
+import com.viswa.crm.dto.activity.ActivityResponse;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.List;
 
 @Getter
 @Setter

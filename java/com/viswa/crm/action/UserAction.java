@@ -3,11 +3,14 @@ package com.viswa.crm.action;
 import com.viswa.crm.action.base.BaseAction;
 import com.viswa.crm.dto.auth.CreateUserRequest;
 import com.viswa.crm.dto.auth.UserResponse;
+import com.viswa.crm.dto.common.ApiResponse;
 import com.viswa.crm.service.AuthService;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.struts2.convention.annotation.Action;
 import org.apache.struts2.convention.annotation.AllowedMethods;
+import org.apache.struts2.convention.annotation.Namespace;
+import org.apache.struts2.convention.annotation.ParentPackage;
 import org.apache.struts2.convention.annotation.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -16,26 +19,24 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.opensymphony.xwork2.Action.*;
+import static com.opensymphony.xwork2.Action.ERROR;
+import static com.opensymphony.xwork2.Action.INPUT;
+import static com.opensymphony.xwork2.Action.LOGIN;
+import static com.opensymphony.xwork2.Action.SUCCESS;
 
 @AllowedMethods({"execute", "add", "edit", "save", "delete", "view"})
-
 @Component
-@Action(
-        value = "user",
-        results = {
-                @Result(name = SUCCESS, location = "admin/user-list.jsp"),
-                @Result(name = INPUT, location = "admin/user-form.jsp"),
-                @Result(name = LOGIN, location = "login.action", type = "redirect"),
-                @Result(name = ERROR, location = "errors/403.jsp")
-        }
-)
 @Getter
 @Setter
+@ParentPackage("json-default")
+@Namespace("/")
 public class UserAction extends BaseAction {
 
     @Autowired
-    private AuthService authService;
+    private transient AuthService authService;   // do not serialize
+
+    // JSON root
+    private ApiResponse<Object> apiResponse = new ApiResponse<>();
 
     // form fields
     private Long id;
@@ -45,52 +46,104 @@ public class UserAction extends BaseAction {
     private String fullName;
     private Long roleId;
 
-    // ui data
-    private List<UserResponse> users;
-    private UserResponse user;
-    private Map<Long, String> roleOptions;
-
+    // ===== LIST USERS =====
+    @Action(
+            value = "user",
+            results = {
+                    @Result(name = SUCCESS, type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"}),
+                    @Result(name = LOGIN,   type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"}),
+                    @Result(name = ERROR,   type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"})
+            }
+    )
     @Override
     public String execute() {
 
         if (!isAuthenticated()) {
+            apiResponse.setSuccess(false);
+            apiResponse.setMessage("Not authenticated");
+            apiResponse.setData(null);
             return LOGIN;
         }
 
         if (!role().canManageUsers()) {
+            apiResponse.setSuccess(false);
+            apiResponse.setMessage("Not authorized to manage users");
+            apiResponse.setData(null);
             return ERROR;
         }
 
-        users = authService.getAllUsers();
+        List<UserResponse> users = authService.getAllUsers();
+        apiResponse.setSuccess(true);
+        apiResponse.setMessage("Users fetched successfully");
+        apiResponse.setData(users);
+
         return SUCCESS;
     }
 
+    // ===== PREPARE ADD (role options) =====
+    @Action(
+            value = "user-add",
+            results = {
+                    @Result(name = SUCCESS, type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"}),
+                    @Result(name = LOGIN,   type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"}),
+                    @Result(name = ERROR,   type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"})
+            }
+    )
     public String add() {
 
         if (!isAuthenticated()) {
+            apiResponse.setSuccess(false);
+            apiResponse.setMessage("Not authenticated");
             return LOGIN;
         }
 
         if (!role().canManageUsers()) {
+            apiResponse.setSuccess(false);
+            apiResponse.setMessage("Not authorized to manage users");
             return ERROR;
         }
 
-        roleOptions = new LinkedHashMap<>();
-        roleOptions.put(1L, "ADMIN");
-        roleOptions.put(2L, "MANAGER");
-        roleOptions.put(3L, "SALES");
+        Map<Long, String> roleOptions = buildRoleOptions();
+
+        apiResponse.setSuccess(true);
+        apiResponse.setMessage("Ready to create user");
+        apiResponse.setData(roleOptions);
 
         clearForm();
-        return INPUT;
+        return SUCCESS;
     }
 
+    // ===== CREATE USER =====
+    @Action(
+            value = "user-save",
+            results = {
+                    @Result(name = SUCCESS, type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"}),
+                    @Result(name = INPUT,   type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"}),
+                    @Result(name = LOGIN,   type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"}),
+                    @Result(name = ERROR,   type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"})
+            }
+    )
     public String save() {
 
         if (!isAuthenticated()) {
+            apiResponse.setSuccess(false);
+            apiResponse.setMessage("Not authenticated");
             return LOGIN;
         }
 
         if (!role().canManageUsers()) {
+            apiResponse.setSuccess(false);
+            apiResponse.setMessage("Not authorized to manage users");
             return ERROR;
         }
 
@@ -103,51 +156,96 @@ public class UserAction extends BaseAction {
             request.setRoleId(roleId);
 
             authService.createUser(request);
+
+            apiResponse.setSuccess(true);
+            apiResponse.setMessage("User created successfully");
+            apiResponse.setData(null);
             return SUCCESS;
 
         } catch (Exception ex) {
-            loadRoleOptions();
-            addActionError(ex.getMessage());
+            apiResponse.setSuccess(false);
+            apiResponse.setMessage(ex.getMessage());
+            apiResponse.setData(buildRoleOptions());
             return INPUT;
         }
     }
 
+    // ===== DELETE USER =====
+    @Action(
+            value = "user-delete",
+            results = {
+                    @Result(name = SUCCESS, type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"}),
+                    @Result(name = LOGIN,   type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"}),
+                    @Result(name = ERROR,   type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"})
+            }
+    )
     public String delete() {
 
         if (!isAuthenticated()) {
+            apiResponse.setSuccess(false);
+            apiResponse.setMessage("Not authenticated");
             return LOGIN;
         }
 
         if (!role().canManageUsers()) {
+            apiResponse.setSuccess(false);
+            apiResponse.setMessage("Not authorized to manage users");
             return ERROR;
         }
 
         try {
             authService.deleteUser(id);
+            apiResponse.setSuccess(true);
+            apiResponse.setMessage("User deleted successfully");
+            apiResponse.setData(null);
             return SUCCESS;
+
         } catch (Exception ex) {
-            addActionError(ex.getMessage());
+            apiResponse.setSuccess(false);
+            apiResponse.setMessage(ex.getMessage());
+            apiResponse.setData(null);
             return ERROR;
         }
-
     }
 
+    // ===== VIEW SINGLE USER =====
+    @Action(
+            value = "user-view",
+            results = {
+                    @Result(name = SUCCESS, type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"}),
+                    @Result(name = LOGIN,   type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"}),
+                    @Result(name = ERROR,   type = "json",
+                            params = {"root", "apiResponse", "excludeNullProperties", "true"})
+            }
+    )
     public String view() {
 
         if (!isAuthenticated()) {
+            apiResponse.setSuccess(false);
+            apiResponse.setMessage("Not authenticated");
             return LOGIN;
         }
 
         if (!role().canManageUsers()) {
+            apiResponse.setSuccess(false);
+            apiResponse.setMessage("Not authorized to manage users");
             return ERROR;
         }
 
-        user = authService.getUserById(id);
+        UserResponse user = authService.getUserById(id);
+
+        apiResponse.setSuccess(true);
+        apiResponse.setMessage("User fetched successfully");
+        apiResponse.setData(user);
         return SUCCESS;
     }
 
-
-
+    // ===== Helpers =====
     private void clearForm() {
         this.id = null;
         this.username = null;
@@ -157,10 +255,11 @@ public class UserAction extends BaseAction {
         this.roleId = null;
     }
 
-    private void loadRoleOptions() {
-        roleOptions = new LinkedHashMap<>();
-        roleOptions.put(1L, "ADMIN");
-        roleOptions.put(2L, "MANAGER");
-        roleOptions.put(3L, "SALES");
+    private Map<Long, String> buildRoleOptions() {
+        Map<Long, String> roles = new LinkedHashMap<>();
+        roles.put(1L, "ADMIN");
+        roles.put(2L, "MANAGER");
+        roles.put(3L, "SALES");
+        return roles;
     }
 }
